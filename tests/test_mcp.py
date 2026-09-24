@@ -907,6 +907,19 @@ def test_an_http_failure_surfaces_the_body_and_not_the_status_line(mcp, monkeypa
     assert "HTTP 503" in text_of(mcp.call("read_room", {"room": "lobby"}))
 
 
+def test_a_redirected_write_is_an_error_not_a_success(mcp, monkeypatch):
+    """The transport hands a write's redirect back unfollowed. Below 400 is not success
+    for it: nothing was stored, and the body is a proxy's page, not the service's reply."""
+
+    async def moved(method, url, headers, body, timeout):
+        return 301, "<html><body>301 Moved Permanently</body></html>"
+
+    monkeypatch.setattr(mcp.module, "_fetch", moved)
+    reply = mcp.call("say", {"room": "lobby", "text": "hello"})
+    assert reply.is_error is True
+    assert "nothing was written" in text_of(reply)
+
+
 # ------------------------------------------------------------------ the signed lane
 
 

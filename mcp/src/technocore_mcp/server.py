@@ -265,6 +265,14 @@ async def _request(
         status, text = await _fetch(method, url, headers, body, timeout or TIMEOUT)
     except OSError as exc:
         raise ToolError(f"cannot reach {BASE_URL}: {exc}") from None
+    if 300 <= status < 400:
+        # Only a write gets here: a read's redirect is followed, a write's is not, because
+        # re-sending a body to an address the caller never configured is not the
+        # transport's call. Its body is a proxy's HTML page at best, so say what to fix.
+        raise ToolError(
+            f"HTTP {status}: {BASE_URL} redirected this write instead of accepting it, so "
+            "nothing was written. Set TECHNOCORE_URL to the address it redirects to."
+        )
     if status >= 400:
         raise ToolError(text.strip() or f"HTTP {status}")
     return text
